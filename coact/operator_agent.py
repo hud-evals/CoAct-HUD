@@ -17,6 +17,7 @@ from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalCon
 
 from .cua_agent import run_cua
 from .coding_agent import TerminalProxyAgent, CODER_SYSTEM_MESSAGE
+from .async_utils import run_async_in_sync
 
 
 class OrchestratorAgent(MultimodalConversableAgent):
@@ -216,7 +217,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                                                    screen_height=screen_height,
                                                    sleep_after_execution=self.cua_config["sleep_after_execution"],
                                                    truncate_history_inputs=self.cua_config["truncate_history_inputs"])
-            screenshot_bytes = asyncio.run(get_screenshot(self.env))
+            screenshot_bytes = run_async_in_sync(get_screenshot(self.env))
 
             with open(os.path.join(cua_path, "history_inputs.json"), "w") as f:
                 json.dump(history_inputs, f)
@@ -243,7 +244,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         """Run a coding agent to solve the task."""
         default_auto_reply = "I'm a code interpreter and I can only execute your code or end the conversation. If you think the problem is solved, please reply me only with 'TERMINATE'."
         try:
-            screenshot_bytes = asyncio.run(get_screenshot(self.env))
+            screenshot_bytes = run_async_in_sync(get_screenshot(self.env))
             screenshot_b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
             coding_agent = MultimodalConversableAgent(
                 name="coding_agent",
@@ -303,7 +304,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         except Exception:
             return f"# Call coding agent error: {traceback.format_exc()}"
 
-        screenshot = asyncio.run(get_screenshot(self.env))
+        screenshot = run_async_in_sync(get_screenshot(self.env))
         return f"# Response from coding agent: {summarized_history}"
 
 

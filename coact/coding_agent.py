@@ -8,6 +8,9 @@ from autogen.llm_config import LLMConfig
 from autogen.code_utils import PYTHON_VARIANTS
 from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
 
+# Import the helper function from async_utils
+from .async_utils import run_async_in_sync
+
 
 CODER_SYSTEM_MESSAGE = """# Your role
 - You are a programmer, you need to solve a task step-by-step given by the user. 
@@ -64,7 +67,10 @@ class TerminalProxyAgent(MultimodalConversableAgent):
                 action="bash",
                 args={"code": code}
             )
-            obs, _, _, info = asyncio.run(self.env.step(action))
+            obs, _, _, info = run_async_in_sync(self.env.step(action))
+
+            print(f"Info: {info}")
+            print(f"Obs: {obs}")
             
             # Extract results from info
             if info.get("status") == "success":
@@ -80,7 +86,7 @@ class TerminalProxyAgent(MultimodalConversableAgent):
                 action="python",
                 args={"code": code}
             )
-            obs, _, _, info = asyncio.run(self.env.step(action))
+            obs, _, _, info = run_async_in_sync(self.env.step(action))
             
             # Extract results from info
             if info.get("status") == "success":

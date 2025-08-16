@@ -9,7 +9,13 @@ from typing import Any, Dict, List, Tuple
 import openai
 from openai import OpenAI  # pip install --upgrade openai>=1.30
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from hud.env.environment import Environment
+
+# Import the helper function from async_utils
+from .async_utils import run_async_in_sync
 from hud.adapters.common.types import ScreenshotFetch
 from hud.adapters.common.types import (
     ClickAction, TypeAction, ScrollAction, DragAction, 
@@ -194,7 +200,7 @@ def run_cua(
 
     # 0 / reset & first screenshot
     logger.info(f"Instruction: {instruction}")
-    screenshot_b64 = asyncio.run(get_screenshot(env))
+    screenshot_b64 = run_async_in_sync(get_screenshot(env))
     with open(os.path.join(save_path, "initial_screenshot.png"), "wb") as f:
         f.write(base64.b64decode(screenshot_b64) if screenshot_b64 else b"")
     history_inputs = [{
@@ -272,7 +278,7 @@ def run_cua(
             cla_action = _cua_to_cla_action(action_call["action"])
 
             # --- execute in VM ---------------------------------------------------
-            obs, *_ = asyncio.run(env.step(cla_action))
+            obs, *_ = run_async_in_sync(env.step(cla_action))
             if sleep_after_execution > 0:
                 time.sleep(sleep_after_execution)
 
