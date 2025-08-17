@@ -1,27 +1,27 @@
 [
   {
     "model": "gpt-4o",
-    "api_key": "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",
+    "api_key": "YOUR_KEY_HERE",
     "tags": ["gpt-4o", "code", "explainer"]
   },
   {
     "model": "o3",
-    "api_key": "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",
+    "api_key": "YOUR_KEY_HERE",
     "tags": ["o3", "coding", "explainer"]
   },
   {
     "model": "gpt-4.1",
-    "api_key": "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",
+    "api_key": "YOUR_KEY_HERE",
     "tags": ["gpt-4.1", "coding", "explainer"]
   },
   {
     "model": "o4-mini",
-    "api_key": "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",
+    "api_key": "YOUR_KEY_HERE",
     "tags": ["o4-mini", "coding", "explainer"]
   },
   {
     "model": "o3-mini",
-    "api_key": "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",
+    "api_key": "YOUR_KEY_HERE",
     "tags": ["o3-mini", "coding", "explainer"]
   }
 ]
