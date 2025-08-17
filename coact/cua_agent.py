@@ -19,7 +19,7 @@ from .async_utils import run_async_in_sync
 from hud.adapters.common.types import ScreenshotFetch
 from hud.adapters.common.types import (
     ClickAction, TypeAction, ScrollAction, DragAction, 
-    PressAction, MoveAction, WaitAction, Point
+    PressAction, MoveAction, WaitAction, Point, CustomAction
 )
 
 logger = logging.getLogger("desktopenv")
@@ -49,6 +49,62 @@ PROMPT_TEMPLATE = """# Task
 - If you don't know how to continue the task, reply your concern or question along with 'IDK'.
 """.strip()
 DEFAULT_REPLY = "Please continue the user task. If you have completed the user task, reply with the information you want the user to know along with 'TERMINATE'."
+
+
+def _cua_to_pyautogui(action) -> str:
+    """Convert an Action (dict **or** Pydantic model) into a pyautogui call."""
+    def fld(key: str, default: Any = None) -> Any:
+        return action.get(key, default) if isinstance(action, dict) else getattr(action, key, default)
+
+    act_type = fld("type")
+    if not isinstance(act_type, str):
+        act_type = str(act_type).split(".")[-1]
+    act_type = act_type.lower()
+
+    if act_type in ["click", "double_click"]:
+        button = fld('button', 'left')
+        if button == 1 or button == 'left':
+            button = 'left'
+        elif button == 2 or button == 'middle':
+            button = 'middle'
+        elif button == 3 or button == 'right':
+            button = 'right'
+
+        if act_type == "click":
+            return f"pyautogui.click({fld('x')}, {fld('y')}, button='{button}')"
+        if act_type == "double_click":
+            return f"pyautogui.doubleClick({fld('x')}, {fld('y')}, button='{button}')"
+        
+    if act_type == "scroll":
+        cmd = ""
+        if fld('scroll_y', 0) != 0:
+            cmd += f"pyautogui.scroll({-fld('scroll_y', 0) / 100}, x={fld('x', 0)}, y={fld('y', 0)});"
+        return cmd
+    if act_type == "drag":
+        path = fld('path', [{"x": 0, "y": 0}, {"x": 0, "y": 0}])
+        cmd = f"pyautogui.moveTo({path[0]['x']}, {path[0]['y']}, _pause=False); "
+        cmd += f"pyautogui.dragTo({path[1]['x']}, {path[1]['y']}, duration=0.5, button='left')"
+        return cmd
+
+    if act_type == 'move':
+        return f"pyautogui.moveTo({fld('x')}, {fld('y')})"
+
+    if act_type == "keypress":
+        keys = fld("keys", []) or [fld("key")]
+        if len(keys) == 1:
+            return f"pyautogui.press('{keys[0].lower()}')"
+        else:
+            return "pyautogui.hotkey('{}')".format("', '".join(keys)).lower()
+        
+    if act_type == "type":
+        text = str(fld("text", ""))
+        return "pyautogui.typewrite({:})".format(repr(text))
+    
+    if act_type == "wait":
+        return "WAIT"
+    
+    return "WAIT"  # fallback
+
 
 
 def _cua_to_cla_action(action) -> Any:
@@ -275,7 +331,8 @@ def run_cua(
             break
 
         for action_call in calls:
-            cla_action = _cua_to_cla_action(action_call["action"])
+            py_cmd = _cua_to_pyautogui(action_call["action"])
+            cla_action = CustomAction(action=py_cmd)
 
             # --- execute in VM ---------------------------------------------------
             obs, *_ = run_async_in_sync(env.step(cla_action))
