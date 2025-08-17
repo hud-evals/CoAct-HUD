@@ -207,13 +207,18 @@ def call_openai_cua(client: OpenAI,
     while retry < 3:
         try:
             # Build common payload
+            # Map environment to valid values per OpenAI docs
+            env_mapped = environment
+            if environment.lower() in ["linux", "ubuntu"]:
+                env_mapped = "ubuntu"
+
             payload: Dict[str, Any] = {
                 "model": "computer-use-preview",
                 "tools": [{
                     "type": "computer_use_preview",
                     "display_width": screen_width,
                     "display_height": screen_height,
-                    "environment": environment,
+                    "environment": env_mapped,
                 }],
                 "truncation": "auto",
             }
@@ -277,7 +282,7 @@ def run_cua(
         ],
     }]
 
-    # Initial request per docs: send prompt (and optional screenshot), include reasoning summary
+    # Initial request per docs: send prompt (and optional screenshot)
     response, cost = call_openai_cua(
         client,
         input_items=history_inputs,
@@ -285,7 +290,7 @@ def run_cua(
         screen_height=screen_height,
         environment="linux",
         previous_response_id=None,
-        include_reasoning_summary=True,
+        include_reasoning_summary=False,
     )
     total_cost = cost
     logger.info(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
