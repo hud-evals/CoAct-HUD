@@ -199,7 +199,7 @@ def call_openai_cua(client: OpenAI,
                     input_items: list,
                     screen_width: int = 1920,
                     screen_height: int = 1080,
-                    environment: str = "ubuntu",
+                    environment: str = "linux",
                     previous_response_id: str | None = None,
                     include_reasoning_summary: bool = False) -> Tuple[Any, float]:
     retry = 0
@@ -283,7 +283,7 @@ def run_cua(
         input_items=history_inputs,
         screen_width=screen_width,
         screen_height=screen_height,
-        environment="ubuntu",
+        environment="linux",
         previous_response_id=None,
         include_reasoning_summary=True,
     )
@@ -497,7 +497,7 @@ def run_cua(
             input_items=history_inputs[-1:],  # send only the latest output (and safety acks)
             screen_width=screen_width,
             screen_height=screen_height,
-            environment="ubuntu",
+            environment="linux",
             previous_response_id=getattr(response, "id", None),
             include_reasoning_summary=False,
         )
