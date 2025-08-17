@@ -196,29 +196,39 @@ def _to_input_items(output_items: list) -> list:
 
 
 def call_openai_cua(client: OpenAI,
-                    history_inputs: list,
+                    input_items: list,
                     screen_width: int = 1920,
                     screen_height: int = 1080,
-                    environment: str = "linux") -> Tuple[Any, float]:
+                    environment: str = "ubuntu",
+                    previous_response_id: str | None = None,
+                    include_reasoning_summary: bool = False) -> Tuple[Any, float]:
     retry = 0
     response = None
     while retry < 3:
         try:
-            response = client.responses.create(
-                model="computer-use-preview",
-                tools=[{
+            # Build common payload
+            payload: Dict[str, Any] = {
+                "model": "computer-use-preview",
+                "tools": [{
                     "type": "computer_use_preview",
                     "display_width": screen_width,
                     "display_height": screen_height,
                     "environment": environment,
                 }],
-                input=history_inputs,
-                reasoning={
-                    "summary": "concise"
-                },
-                tool_choice="required",
-                truncation="auto",
-            )
+                "truncation": "auto",
+            }
+
+            if previous_response_id:
+                # Subsequent calls: link conversation by previous_response_id
+                payload["previous_response_id"] = previous_response_id
+                payload["input"] = input_items
+            else:
+                # Initial call: send initial prompt (and optional screenshot)
+                payload["input"] = input_items
+                if include_reasoning_summary:
+                    payload["reasoning"] = {"summary": "concise"}
+
+            response = client.responses.create(**payload)
             break
         except openai.BadRequestError as e:
             retry += 1
@@ -267,7 +277,16 @@ def run_cua(
         ],
     }]
 
-    response, cost = call_openai_cua(client, history_inputs, screen_width, screen_height)
+    # Initial request per docs: send prompt (and optional screenshot), include reasoning summary
+    response, cost = call_openai_cua(
+        client,
+        input_items=history_inputs,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        environment="ubuntu",
+        previous_response_id=None,
+        include_reasoning_summary=True,
+    )
     total_cost = cost
     logger.info(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
     step_no = 0
@@ -343,14 +362,26 @@ def run_cua(
             screenshot_b64 = obs.screenshot if obs and obs.screenshot else ""
             with open(os.path.join(save_path, f"step_{step_no}.png"), "wb") as f:
                 f.write(base64.b64decode(screenshot_b64) if screenshot_b64 else b"")
-            history_inputs += [{
+            # Build next input strictly per docs: only the computer_call_output referencing last call
+            next_input: Dict[str, Any] = {
                 "type": "computer_call_output",
                 "call_id": action_call["call_id"],
                 "output": {
                     "type": "computer_screenshot",
                     "image_url": f"data:image/png;base64,{screenshot_b64}",
                 },
-            }]
+            }
+            # Acknowledge any pending safety checks returned
+            if "pending_safety_checks" in action_call and len(action_call.get("pending_safety_checks", [])) > 0:
+                next_input["acknowledged_safety_checks"] = [
+                    {
+                        "id": psc["id"],
+                        "code": psc["code"],
+                        "message": "Please acknowledge this warning if you'd like to proceed.",
+                    }
+                    for psc in action_call.get("pending_safety_checks", [])
+                ]
+            history_inputs.append(next_input)
             if "pending_safety_checks" in action_call and len(action_call.get("pending_safety_checks", [])) > 0:
                 history_inputs[-1]['acknowledged_safety_checks'] = [
                     {
@@ -361,7 +392,7 @@ def run_cua(
                     for psc in action_call.get("pending_safety_checks", [])
                 ]
         
-        # truncate history inputs while preserving call_id pairs
+        # truncate history inputs while preserving required pairs and dependencies
         if len(history_inputs) > truncate_history_inputs:
             original_history = history_inputs[:]
             history_inputs = [history_inputs[0]] + history_inputs[-truncate_history_inputs:]
@@ -418,7 +449,58 @@ def run_cua(
                     
                     history_inputs.insert(insert_pos, missing_item)
 
-        response, cost = call_openai_cua(client, history_inputs, screen_width, screen_height)
+            # Ensure each computer_call has a preceding reasoning item.
+            # Some OpenAI responses require the reasoning item (type 'reasoning')
+            # referenced by the computer_call to be present in the input history.
+            # To be safe, for any computer_call without a prior reasoning item in
+            # the truncated history, include the most recent reasoning item from
+            # the original history prior to that call.
+            # Build list of indices of reasoning items in original history
+            reasoning_indices = [idx for idx, it in enumerate(original_history)
+                                 if isinstance(it, dict) and it.get('type') == 'reasoning']
+
+            if reasoning_indices:
+                # Scan truncated history to find computer_call entries
+                i = 0
+                while i < len(history_inputs):
+                    item = history_inputs[i]
+                    if isinstance(item, dict) and item.get('type') == 'computer_call':
+                        # Check if there is any reasoning item before this index in truncated history
+                        has_prior_reasoning = any(
+                            isinstance(prev, dict) and prev.get('type') == 'reasoning'
+                            for prev in history_inputs[:i]
+                        )
+                        if not has_prior_reasoning:
+                            # Find the nearest prior reasoning in original history relative to this item
+                            try:
+                                orig_idx = original_history.index(item)
+                            except ValueError:
+                                orig_idx = -1
+                            # Find the last reasoning index less than orig_idx
+                            prior_reasoning_idx = -1
+                            for ridx in reasoning_indices:
+                                if ridx < orig_idx:
+                                    prior_reasoning_idx = ridx
+                                else:
+                                    break
+                            if prior_reasoning_idx != -1:
+                                reasoning_item = original_history[prior_reasoning_idx]
+                                # Insert reasoning item just before the computer_call in truncated history
+                                if reasoning_item not in history_inputs:
+                                    history_inputs.insert(i, reasoning_item)
+                                    i += 1  # Skip over the inserted reasoning
+                    i += 1
+
+        # Subsequent requests should use previous_response_id and only send the computer_call_output
+        response, cost = call_openai_cua(
+            client,
+            input_items=history_inputs[-1:],  # send only the latest output (and safety acks)
+            screen_width=screen_width,
+            screen_height=screen_height,
+            environment="ubuntu",
+            previous_response_id=getattr(response, "id", None),
+            include_reasoning_summary=False,
+        )
         total_cost += cost
         logger.info(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
     
