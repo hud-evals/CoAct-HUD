@@ -438,13 +438,15 @@ def main():
     print(f"Evaluation Complete: {args.name}")
     print(f"Taskset: {args.taskset}")
     print(f"Tasks: {len(rewards)}")
-    reward_list = [reward.get("reward") for reward in rewards]
-    non_null_rewards = [reward for reward in reward_list if reward is not None]
-    print(f"Rewards: {reward_list}")
-    print(f"Average Reward: {sum(non_null_rewards)/len(non_null_rewards) if non_null_rewards else 0:.3f}")
-    tasks_without_reward = [reward for reward in rewards if reward is None]
-    if tasks_without_reward:
-        print(f"Tasks without reward: {len(tasks_without_reward)}")
+    print(f"Rewards: {rewards}")
+    print(f"Average Reward: {sum(rewards)/len(rewards) if rewards else 0:.3f}")
+    # reward_list = [reward.get("reward") for reward in rewards]
+    # non_null_rewards = [reward for reward in reward_list if reward is not None]
+    # print(f"Rewards: {reward_list}")
+    # print(f"Average Reward: {sum(non_null_rewards)/len(non_null_rewards) if non_null_rewards else 0:.3f}")
+    # tasks_without_reward = [reward for reward in rewards if reward is None]
+    # if tasks_without_reward:
+        # print(f"Tasks without reward: {len(tasks_without_reward)}")
     print("="*60)
     
     return 0
