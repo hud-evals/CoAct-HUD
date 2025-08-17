@@ -301,11 +301,25 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                     }
                 ]
             )[1]
-        except Exception:
-            return f"# Call coding agent error: {traceback.format_exc()}"
+            
+            # Ensure summarized_history is a string
+            if isinstance(summarized_history, list):
+                # If it's a list of message content, extract the text
+                if summarized_history and isinstance(summarized_history[0], dict):
+                    summarized_history = summarized_history[0].get('text', str(summarized_history))
+                else:
+                    summarized_history = str(summarized_history)
+            elif not isinstance(summarized_history, str):
+                summarized_history = str(summarized_history)
+                
+        except Exception as e:
+            error_msg = f"# Call coding agent error: {traceback.format_exc()}"
+            print(error_msg)  # Log the error for debugging
+            return error_msg
 
         screenshot = run_async_in_sync(get_screenshot(self.env))
-        return f"# Response from coding agent: {summarized_history}"
+        result = f"# Response from coding agent: {summarized_history}"
+        return result
 
 
 async def get_screenshot(env: Environment) -> bytes:

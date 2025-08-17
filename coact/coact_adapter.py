@@ -237,18 +237,16 @@ class CoActAdapter(Adapter):
             # Handle custom coding actions
             elif action_type == "bash":
                 assert "code" in data
-                # CustomAction takes action name and additional fields as kwargs
+                # CustomAction takes action concatenated with code
                 converted_action = CustomAction(
-                    action="bash",
-                    **{"code": data["code"]}
+                    action="bash" + data["code"]
                 )
 
             elif action_type == "python":
                 assert "code" in data
-                # CustomAction takes action name and additional fields as kwargs
+                # CustomAction takes action concatenated with code
                 converted_action = CustomAction(
-                    action="python",
-                    **{"code": data["code"]}
+                    action="python" + data["code"]
                 )
 
             elif action_type == "custom":

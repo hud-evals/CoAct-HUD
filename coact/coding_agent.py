@@ -64,37 +64,44 @@ class TerminalProxyAgent(MultimodalConversableAgent):
         if lang in ["bash", "shell", "sh"]:
             # Use custom action for bash execution with proper CLA format
             action = CustomAction(
-                action="bash",
-                args={"code": code}
+                action="bash" + code
             )
             obs, _, _, info = run_async_in_sync(self.env.step(action))
-
-            print(f"Info: {info}")
-            print(f"Obs: {obs}")
             
-            # Extract results from info
-            if info.get("status") == "success":
-                exitcode = 0
-                logs = info.get("output", "")
+            # Extract results - check both info and obs for output
+            # The environment might return results in different ways
+            if info and isinstance(info, dict):
+                if info.get("status") == "success":
+                    exitcode = 0
+                    logs = info.get("output", "")
+                else:
+                    exitcode = 1 if info.get("status") == "error" else 0
+                    logs = info.get("output", info.get("error", info.get("message", "")))
             else:
-                exitcode = 1
-                logs = info.get("output", info.get("error", "Execution failed"))
+                # Fallback: assume success if we got an observation
+                exitcode = 0 if obs else 1
+                logs = str(info) if info else "Code executed"
                 
         elif lang in PYTHON_VARIANTS:
             # Use custom action for python execution with proper CLA format
             action = CustomAction(
-                action="python",
-                args={"code": code}
+                action="python" + code
             )
             obs, _, _, info = run_async_in_sync(self.env.step(action))
             
-            # Extract results from info
-            if info.get("status") == "success":
-                exitcode = 0
-                logs = info.get("output", info.get("message", ""))
+            # Extract results - check both info and obs for output
+            # The environment might return results in different ways
+            if info and isinstance(info, dict):
+                if info.get("status") == "success":
+                    exitcode = 0
+                    logs = info.get("output", info.get("message", ""))
+                else:
+                    exitcode = 1 if info.get("status") == "error" else 0
+                    logs = info.get("output", info.get("error", info.get("message", "")))
             else:
-                exitcode = 1
-                logs = info.get("output", info.get("error", "Execution failed"))
+                # Fallback: assume success if we got an observation
+                exitcode = 0 if obs else 1
+                logs = str(info) if info else "Code executed"
                 
         else:
             exitcode = -1
