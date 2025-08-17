@@ -176,8 +176,8 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         )
         self.register_function(
             function_map={
-                "call_gui_agent": lambda **args: self._call_gui_agent(**args, screen_width=1920, screen_height=1080),
-                "call_coding_agent": lambda **args: self._call_coding_agent(**args),
+                "call_gui_agent": lambda **args: self._ensure_str(self._call_gui_agent(**args, screen_width=1920, screen_height=1080)),
+                "call_coding_agent": lambda **args: self._ensure_str(self._call_coding_agent(**args)),
             }
         )
         self._code_execution_config = code_execution_config
@@ -198,6 +198,22 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         self.coding_max_steps = coding_max_steps
         self.llm_config = llm_config
         self.llm_model = llm_model
+
+    def _ensure_str(self, value: Any) -> str:
+        """Ensure tool responses are plain strings for ToolResponseEvent."""
+        try:
+            if isinstance(value, str):
+                return value
+            if value is None:
+                return ""
+            if isinstance(value, (list, dict)):
+                try:
+                    return json.dumps(value, ensure_ascii=False)
+                except Exception:
+                    return str(value)
+            return str(value)
+        except Exception:
+            return ""
 
     async def reset(self):
         obs = await self.env.reset()
