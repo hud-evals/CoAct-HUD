@@ -29,4 +29,6 @@ TODO.md
 .coverage
 # Ignore CoAct results directory
 /coact_results
-OAI_CONFIG_LIST
+
+# Ignore OAI_CONFIG_LIST
+coact/OAI_CONFIG_LIST
