@@ -187,6 +187,7 @@ I will not provide further information to you."""
             
             # Evaluate the task
             reward = await env.evaluate()
+            print(f"Task {task.id}: Reward = {reward}")
             
             if verbose:
                 print(f"Task {task.id}: Reward = {reward}")
@@ -201,7 +202,6 @@ I will not provide further information to you."""
     except Exception as e:
         print(f"Error running task {task.id}: {e}")
         traceback.print_exc()
-        
         # Save error
         if task_save_dir:
             try:
@@ -212,7 +212,19 @@ I will not provide further information to you."""
             except:
                 pass
         
-        return 0.0
+                # Attempt to evaluate the task
+        try:
+            reward = await env.evaluate()
+            print(f"Error in task, evaluating anyway: {task.id}: Reward = {reward}")
+            return reward
+        except Exception as e:
+            print(f"Error evaluating task {task.id}: {e}")
+            traceback.print_exc()
+            reward = 0.0
+        
+        # Ensure we always return a numeric reward on error paths
+        return reward
+        
         
     finally:
         # Clean up environment
@@ -438,15 +450,13 @@ def main():
     print(f"Evaluation Complete: {args.name}")
     print(f"Taskset: {args.taskset}")
     print(f"Tasks: {len(rewards)}")
-    print(f"Rewards: {rewards}")
-    print(f"Average Reward: {sum(rewards)/len(rewards) if rewards else 0:.3f}")
-    # reward_list = [reward.get("reward") for reward in rewards]
-    # non_null_rewards = [reward for reward in reward_list if reward is not None]
-    # print(f"Rewards: {reward_list}")
-    # print(f"Average Reward: {sum(non_null_rewards)/len(non_null_rewards) if non_null_rewards else 0:.3f}")
-    # tasks_without_reward = [reward for reward in rewards if reward is None]
-    # if tasks_without_reward:
-        # print(f"Tasks without reward: {len(tasks_without_reward)}")
+    reward_list = [reward.get("reward") for reward in rewards if reward is not None]
+    non_null_rewards = [reward for reward in reward_list if reward is not None]
+    print(f"Rewards: {reward_list}")
+    print(f"Average Reward: {sum(non_null_rewards)/len(non_null_rewards) if non_null_rewards else 0:.3f}")
+    tasks_without_reward = [reward for reward in rewards if reward is None]
+    if tasks_without_reward:
+        print(f"Tasks without reward: {len(tasks_without_reward)}")
     print("="*60)
     
     return 0
