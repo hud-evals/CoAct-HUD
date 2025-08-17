@@ -73,10 +73,10 @@ class TerminalProxyAgent(MultimodalConversableAgent):
             if info and isinstance(info, dict):
                 if info.get("status") == "success":
                     exitcode = 0
-                    logs = info.get("output", "")
+                    logs = info.get("script_output", "")
                 else:
                     exitcode = 1 if info.get("status") == "error" else 0
-                    logs = info.get("output", info.get("error", info.get("message", "")))
+                    logs = info.get("script_output", info.get("error", info.get("message", "")))
             else:
                 # Fallback: assume success if we got an observation
                 exitcode = 0 if obs else 1
@@ -94,10 +94,10 @@ class TerminalProxyAgent(MultimodalConversableAgent):
             if info and isinstance(info, dict):
                 if info.get("status") == "success":
                     exitcode = 0
-                    logs = info.get("output", info.get("message", ""))
+                    logs = info.get("script_output", info.get("message", ""))
                 else:
                     exitcode = 1 if info.get("status") == "error" else 0
-                    logs = info.get("output", info.get("error", info.get("message", "")))
+                    logs = info.get("script_output", info.get("error", info.get("message", "")))
             else:
                 # Fallback: assume success if we got an observation
                 exitcode = 0 if obs else 1
