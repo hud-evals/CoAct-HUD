@@ -208,9 +208,13 @@ def call_openai_cua(client: OpenAI,
         try:
             # Build common payload
             # Map environment to valid values per OpenAI docs
-            env_mapped = environment
-            if environment.lower() in ["linux", "ubuntu"]:
-                env_mapped = "ubuntu"
+            env_mapped = (environment or "linux").lower()
+            # Translate common alias 'ubuntu' to 'linux'
+            if env_mapped == "ubuntu":
+                env_mapped = "linux"
+            # Fallback to linux if unexpected value provided
+            if env_mapped not in ("linux", "windows", "mac", "browser"):
+                env_mapped = "linux"
 
             payload: Dict[str, Any] = {
                 "model": "computer-use-preview",
