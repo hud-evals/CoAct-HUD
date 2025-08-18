@@ -15,7 +15,7 @@ from autogen.llm_config import LLMConfig
 from autogen.agentchat.conversable_agent import ConversableAgent
 from autogen.agentchat.contrib.multimodal_conversable_agent import MultimodalConversableAgent
 
-from .cua_agent import run_cua
+from .cua_agent import get_screenshot, run_cua
 from .coding_agent import TerminalProxyAgent, CODER_SYSTEM_MESSAGE
 from .async_utils import run_async_in_sync
 
@@ -176,8 +176,8 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         )
         self.register_function(
             function_map={
-                "call_gui_agent": lambda **args: self._ensure_str(self._call_gui_agent(**args, screen_width=1920, screen_height=1080)),
-                "call_coding_agent": lambda **args: self._ensure_str(self._call_coding_agent(**args)),
+                "call_gui_agent": lambda **args: self._call_gui_agent(**args, screen_width=1920, screen_height=1080),
+                "call_coding_agent": lambda **args: self._call_coding_agent(**args),
             }
         )
         self._code_execution_config = code_execution_config
@@ -199,24 +199,8 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         self.llm_config = llm_config
         self.llm_model = llm_model
 
-    def _ensure_str(self, value: Any) -> str:
-        """Ensure tool responses are plain strings for ToolResponseEvent."""
-        try:
-            if isinstance(value, str):
-                return value
-            if value is None:
-                return ""
-            if isinstance(value, (list, dict)):
-                try:
-                    return json.dumps(value, ensure_ascii=False)
-                except Exception:
-                    return str(value)
-            return str(value)
-        except Exception:
-            return ""
-
-    async def reset(self):
-        obs = await self.env.reset()
+    def reset(self):
+        obs = run_async_in_sync(self.env.reset())
         return obs
 
     def _call_gui_agent(self, task: str, screen_width: int = 1920, screen_height: int = 1080) -> str:
@@ -232,8 +216,9 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                                                    screen_width=screen_width,
                                                    screen_height=screen_height,
                                                    sleep_after_execution=self.cua_config["sleep_after_execution"],
-                                                   truncate_history_inputs=self.cua_config["truncate_history_inputs"])
-            screenshot_bytes = run_async_in_sync(get_screenshot(self.env))
+                                                   truncate_history_inputs=self.cua_config["truncate_history_inputs"],
+                                                   )
+            screenshot = run_async_in_sync(get_screenshot(self.env))
 
             with open(os.path.join(cua_path, "history_inputs.json"), "w") as f:
                 json.dump(history_inputs, f)
@@ -254,16 +239,13 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
             result = result.replace("IDK", "").strip()
         else:
             result = f"I didn't complete the task and I have to go. Now I'm working on \"{result}\", please check the current screenshot."
-        # Ensure plain string output
-        response_text = f"# Response from GUI agent: {result}<img data:image/png;base64,{base64.b64encode(screenshot_bytes).decode('utf-8')}>"
-        return str(response_text)
+        return f"# Response from GUI agent: {result}<img data:image/png;base64,{screenshot}>"
     
     def _call_coding_agent(self, task: str, environment: str) -> str:
         """Run a coding agent to solve the task."""
         default_auto_reply = "I'm a code interpreter and I can only execute your code or end the conversation. If you think the problem is solved, please reply me only with 'TERMINATE'."
         try:
-            screenshot_bytes = run_async_in_sync(get_screenshot(self.env))
-            screenshot_b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+            screenshot = run_async_in_sync(get_screenshot(self.env))  # Already base64 encoded
             coding_agent = MultimodalConversableAgent(
                 name="coding_agent",
                 llm_config=LLMConfig(api_type="openai", model=self.llm_model),
@@ -285,7 +267,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
             )
             code_interpreter.initiate_chat(
                 recipient=coding_agent,
-                message=f"# Task\n{task}\n\n# Environment\n{environment}<img data:image/png;base64,{screenshot_b64}>",
+                message=f"# Task\n{task}\n\n# Environment\n{environment}<img data:image/png;base64,{screenshot}>",
                 max_turns=self.coding_max_steps,
             )
         
@@ -319,34 +301,8 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                     }
                 ]
             )[1]
-            
-            # Ensure summarized_history is a string
-            if isinstance(summarized_history, list):
-                # If it's a list of message content, extract the text
-                if summarized_history and isinstance(summarized_history[0], dict):
-                    summarized_history = summarized_history[0].get('text', str(summarized_history))
-                else:
-                    summarized_history = str(summarized_history)
-            elif not isinstance(summarized_history, str):
-                summarized_history = str(summarized_history)
-                
-        except Exception as e:
-            error_msg = f"# Call coding agent error: {traceback.format_exc()}"
-            print(error_msg)  # Log the error for debugging
-            return error_msg
+        except Exception:
+            return f"# Call coding agent error: {traceback.format_exc()}"
 
         screenshot = run_async_in_sync(get_screenshot(self.env))
-        result = f"# Response from coding agent: {summarized_history}"
-        return str(result)
-
-
-async def get_screenshot(env: Environment) -> bytes:
-    """Get screenshot bytes from the environment."""
-    # Use explicit ScreenshotFetch for portability across environments
-    obs, _, _, _ = await env.step(ScreenshotFetch())
-    if obs and obs.screenshot:
-        # Screenshot is base64 encoded, decode it to bytes
-        return base64.b64decode(obs.screenshot)
-    return b""
-
-
+        return f"# Response from coding agent: {summarized_history}"

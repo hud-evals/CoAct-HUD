@@ -91,14 +91,15 @@ async def run_single_task(
         
         # Create environment for this task
         env = await gym.make(task, job=job)
-        await env.reset()
+        initial_obs, _ = await env.reset()
         
-        # Get initial screenshot
-        screenshot_bytes = await get_screenshot(env)
-        screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+        # Get initial screenshot (already base64-encoded)
+        screenshot_b64 = initial_obs.screenshot
         
         # Save initial screenshot  
-        if task_save_dir:
+        if task_save_dir and screenshot_b64:
+            # Decode base64 string to bytes for saving
+            screenshot_bytes = base64.b64decode(screenshot_b64)
             with open(os.path.join(task_save_dir, "initial_screenshot.png"), "wb") as f:
                 f.write(screenshot_bytes)
         
@@ -131,8 +132,8 @@ async def run_single_task(
                 user_instruction=f"{OSWORLD_SYSTEM_PROMPT}\n\n{task.prompt}"
             )
             
-            # Reset orchestrator proxy
-            await orchestrator_proxy.reset()
+            # Reset orchestrator proxy (synchronous method)
+            orchestrator_proxy.reset()
             
             # Initiate chat with the task
             message = f"""{OSWORLD_SYSTEM_PROMPT}
@@ -260,9 +261,9 @@ async def run_taskset(
     model_name: str = "o4-mini",
     orchestrator_model: str = "o3",
     config_path: str = "coact/OAI_CONFIG_LIST",
-    orchestrator_max_steps: int = 15,
-    cua_max_steps: int = 25,
-    coding_max_steps: int = 20,
+    orchestrator_max_steps: int = 10,
+    cua_max_steps: int = 10,
+    coding_max_steps: int = 10,
     save_dir: str = "./coact_results",
     parallel: bool = False,
     max_concurrent: int = 5,
@@ -386,19 +387,19 @@ def main():
     parser.add_argument(
         "--orchestrator-max-steps",
         type=int,
-        default=15,
+        default=10,
         help="Max orchestrator steps"
     )
     parser.add_argument(
         "--cua-max-steps",
         type=int,
-        default=25,
+        default=10,
         help="Max CUA agent steps"
     )
     parser.add_argument(
         "--coding-max-steps",
         type=int,
-        default=20,
+        default=10,
         help="Max coding agent steps"
     )
     parser.add_argument(
