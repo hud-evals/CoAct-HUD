@@ -110,7 +110,7 @@ class TerminalProxyAgent(MultimodalConversableAgent):
             logs = f"unknown language {lang}"
             
         # Get screenshot after code execution
-        if obs and obs.screenshot:
-            image = obs.screenshot
+        # if obs and obs.screenshot:
+            # image = obs.screenshot
             
         return exitcode, logs, image
