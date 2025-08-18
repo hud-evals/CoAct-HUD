@@ -261,9 +261,9 @@ async def run_taskset(
     model_name: str = "o4-mini",
     orchestrator_model: str = "o3",
     config_path: str = "coact/OAI_CONFIG_LIST",
-    orchestrator_max_steps: int = 10,
-    cua_max_steps: int = 10,
-    coding_max_steps: int = 10,
+    orchestrator_max_steps: int = 15,
+    cua_max_steps: int = 25,
+    coding_max_steps: int = 20,
     save_dir: str = "./coact_results",
     parallel: bool = False,
     max_concurrent: int = 5,
@@ -393,13 +393,13 @@ def main():
     parser.add_argument(
         "--cua-max-steps",
         type=int,
-        default=10,
+        default=25,
         help="Max CUA agent steps"
     )
     parser.add_argument(
         "--coding-max-steps",
         type=int,
-        default=10,
+        default=20,
         help="Max coding agent steps"
     )
     parser.add_argument(
