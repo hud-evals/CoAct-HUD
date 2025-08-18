@@ -353,6 +353,9 @@ def run_cua(
                     for psc in action_call.get("pending_safety_checks", [])
                 ]
         
+        # Initialize original_history for later reference
+        original_history = None
+        
         # truncate history inputs while preserving call_id pairs and reasoning items
         if len(history_inputs) > truncate_history_inputs:
             # print(f"\n=== TRUNCATION NEEDED: {len(history_inputs)} > {truncate_history_inputs} ===")
@@ -569,8 +572,8 @@ def run_cua(
                     prev_item = history_inputs[idx - 1] if idx > 0 else None
                     if prev_item and isinstance(prev_item, dict):
                         # If the message originally had reasoning but it's missing now, flag it
-                        # We check this by looking at the original history
-                        if item in original_history:
+                        # We check this by looking at the original history (if truncation happened)
+                        if original_history and item in original_history:
                             orig_idx = original_history.index(item) 
                             if orig_idx > 0:
                                 orig_prev = original_history[orig_idx - 1]
