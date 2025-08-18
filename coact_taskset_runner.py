@@ -339,8 +339,8 @@ def main():
     parser.add_argument(
         "--taskset",
         type=str,
-        default="OSWorld-Verified",
-        help="The taskset ID to evaluate (default: OSWorld-Verified)"
+        default="OSWorld-Verified-XLang",
+        help="The taskset ID to evaluate (default: OSWorld-Verified-XLang)"
     )
     parser.add_argument(
         "--task-id",

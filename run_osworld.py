@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick runner script for OSWorld-Verified taskset using CoAct agent.
+Quick runner script for OSWorld-Verified-XLang taskset using CoAct agent.
 """
 import sys
 import os
@@ -13,7 +13,7 @@ from coact_taskset_runner import main  # type: ignore
 if __name__ == "__main__":
     # Add default taskset if not specified
     if len(sys.argv) == 1 or (len(sys.argv) > 1 and not any(arg.startswith('--taskset') for arg in sys.argv)):
-        sys.argv.extend(['--taskset', 'OSWorld-Verified'])
+        sys.argv.extend(['--taskset', 'OSWorld-Verified-XLang'])
     
     # Add default name if not specified
     if not any(arg.startswith('--name') for arg in sys.argv):
