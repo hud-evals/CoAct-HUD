@@ -220,7 +220,7 @@ def run_cua(
     screen_width: int = 1920,
     screen_height: int = 1080,
     sleep_after_execution: float = 0.3,
-    truncate_history_inputs: int = 100,
+    truncate_history_inputs: int = 25,
 ) -> Tuple[str, float]:
     client = OpenAI()
 

@@ -154,9 +154,9 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
 
         # Agent config
         sleep_after_execution: float = 1.0,
-        truncate_history_inputs: int = 51,
-        cua_max_steps: int = 50,
-        coding_max_steps: int = 30,
+        truncate_history_inputs: int = 25,
+        cua_max_steps: int = 25,
+        coding_max_steps: int = 20,
         history_save_dir: str = "",
         llm_model: str = "o4-mini",
         user_instruction: str = "",
