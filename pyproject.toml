@@ -14,5 +14,5 @@ dependencies = [
     "openai",
     "typing-extensions",
     "autogen-agentchat>=0.7.2",
-    "autogen>=0.9.8.post1",
+    "ag2 @ git+https://github.com/Parth220/ag2.git",
 ]
