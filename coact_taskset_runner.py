@@ -75,7 +75,7 @@ async def run_single_task(
     cua_max_steps: int = 25,
     coding_max_steps: int = 20,
     save_dir: str = "./coact_results",
-    verbose: bool = True
+    verbose: bool = True,
 ) -> float:
     """Run a single task with CoAct agent and return reward."""
     
@@ -129,7 +129,8 @@ async def run_single_task(
                 truncate_history_inputs=cua_max_steps + 1,
                 cua_max_steps=cua_max_steps,
                 coding_max_steps=coding_max_steps,
-                user_instruction=f"{OSWORLD_SYSTEM_PROMPT}\n\n{task.prompt}"
+                user_instruction=f"{OSWORLD_SYSTEM_PROMPT}\n\n{task.prompt}",
+                silent=not verbose
             )
             
             # Reset orchestrator proxy (synchronous method)
@@ -188,7 +189,6 @@ I will not provide further information to you."""
             
             # Evaluate the task
             reward = await env.evaluate()
-            print(f"Task {task.id}: Reward = {reward}")
             
             if verbose:
                 print(f"Task {task.id}: Reward = {reward}")
@@ -267,7 +267,7 @@ async def run_taskset(
     save_dir: str = "./coact_results",
     parallel: bool = False,
     max_concurrent: int = 5,
-    verbose: bool = True,
+    verbose: bool = False,
     task_id: Optional[str] = None,
     task_index: Optional[int] = None,
     limit: Optional[int] = None,

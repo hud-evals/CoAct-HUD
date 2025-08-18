@@ -42,6 +42,7 @@ class TerminalProxyAgent(MultimodalConversableAgent):
         max_consecutive_auto_reply: Optional[int] = None,
         default_auto_reply: Optional[str] = None,
         description: Optional[str] = None,
+        silent: bool = False
     ):
         super().__init__(
             name=name,
@@ -52,7 +53,8 @@ class TerminalProxyAgent(MultimodalConversableAgent):
             code_execution_config=code_execution_config,
             llm_config=llm_config,
             default_auto_reply=default_auto_reply,
-            description=description
+            description=description,
+            silent=silent
         )
         self.env = env
 

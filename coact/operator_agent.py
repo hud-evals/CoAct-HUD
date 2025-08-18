@@ -150,6 +150,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
         system_message: Optional[Union[str, list]] = "",
         description: Optional[str] = None,
         env: Optional[Environment] = None,  # Pass environment from top level
+        silent: bool = False,
 
         # Agent config
         sleep_after_execution: float = 1.0,
@@ -173,11 +174,12 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
             llm_config=llm_config,
             default_auto_reply=default_auto_reply.format(user_instruction=user_instruction) if isinstance(default_auto_reply, str) else default_auto_reply,
             description=description,
+            silent=silent
         )
         self.register_function(
             function_map={
                 "call_gui_agent": lambda **args: self._call_gui_agent(**args, screen_width=1920, screen_height=1080),
-                "call_coding_agent": lambda **args: self._call_coding_agent(**args),
+                "call_coding_agent": lambda **args: self._call_coding_agent(**args, silent=silent),
             }
         )
         self._code_execution_config = code_execution_config
@@ -241,7 +243,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
             result = f"I didn't complete the task and I have to go. Now I'm working on \"{result}\", please check the current screenshot."
         return f"# Response from GUI agent: {result}<img data:image/png;base64,{screenshot}>"
     
-    def _call_coding_agent(self, task: str, environment: str) -> str:
+    def _call_coding_agent(self, task: str, environment: str, silent: bool = False) -> str:
         """Run a coding agent to solve the task."""
         default_auto_reply = "I'm a code interpreter and I can only execute your code or end the conversation. If you think the problem is solved, please reply me only with 'TERMINATE'."
         try:
@@ -250,6 +252,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                 name="coding_agent",
                 llm_config=LLMConfig(api_type="openai", model=self.llm_model),
                 system_message=CODER_SYSTEM_MESSAGE,
+                silent=silent
             )
             code_interpreter = TerminalProxyAgent(
                 name="code_interpreter",
@@ -264,6 +267,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
                 description = None,
                 is_termination_msg=lambda x: x.get("content", "") and x.get("content", "")[0]["text"].lower() == "terminate",
                 env=self.env,
+                silent=silent
             )
             code_interpreter.initiate_chat(
                 recipient=coding_agent,

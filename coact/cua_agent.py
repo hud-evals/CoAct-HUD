@@ -241,7 +241,7 @@ def run_cua(
 
     response, cost = call_openai_cua(client, history_inputs, screen_width, screen_height)
     total_cost = cost
-    logger.info(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
+    logger.info(f"Cost: ${cost:.6f} | Total Cost This Loop: ${total_cost:.6f}")
     step_no = 0
     
     reasoning_list = []
