@@ -117,7 +117,7 @@ def _to_input_items(output_items: list) -> list:
     IMPORTANT: We must preserve reasoning items along with their corresponding
     computer_call items to maintain the required pairing.
     """
-    print(f"  _to_input_items: Processing {len(output_items)} output items")
+    # print(f"  _to_input_items: Processing {len(output_items)} output items")
     cleaned: List[Dict[str, Any]] = []
     
     # First pass: collect all reasoning and computer_call items
@@ -139,13 +139,13 @@ def _to_input_items(output_items: list) -> list:
             # Store reasoning items by their ID for pairing
             if "id" in raw:
                 reasoning_items[raw["id"]] = raw
-                print(f"    Found reasoning item with id: {raw['id']}")
+                # print(f"    Found reasoning item with id: {raw['id']}")
         elif item_type == "computer_call":
             computer_calls.append(raw)
-            print(f"    Found computer_call with call_id: {raw.get('call_id', 'N/A')}")
+            # print(f"    Found computer_call with call_id: {raw.get('call_id', 'N/A')}")
         elif item_type == "message":
             message_items.append(raw)
-            print(f"    Found message item")
+            # print(f"    Found message item")
     
     # Second pass: add items in correct order, ensuring reasoning-computer_call pairs
     for item in output_items:
@@ -161,7 +161,7 @@ def _to_input_items(output_items: list) -> list:
         if item_type in ["reasoning", "computer_call", "message"]:
             cleaned.append(raw)
 
-    print(f"  _to_input_items: Returning {len(cleaned)} cleaned items")
+    # print(f"  _to_input_items: Returning {len(cleaned)} cleaned items")
     return cleaned
 
 
@@ -250,19 +250,19 @@ def run_cua(
     # 1 / iterative dialogue
     while step_no < max_steps:
         step_no += 1
-        print(f"\n=== STEP {step_no} ===")
-        print(f"Processing {len(response.output)} output items from previous response")
+        # print(f"\n=== STEP {step_no} ===")
+        # print(f"Processing {len(response.output)} output items from previous response")
         
         new_items = _to_input_items(response.output)
-        print(f"Adding {len(new_items)} items to history_inputs")
-        for item in new_items:
-            item_type = item.get('type', 'unknown')
-            call_id = item.get('call_id', 'N/A')
-            reasoning_id = item.get('id', 'N/A') if item.get('type') == 'reasoning' else 'N/A'
-            if reasoning_id != 'N/A':
-                print(f"  - {item_type} (id: {reasoning_id})")
-            else:
-                print(f"  - {item_type} (call_id: {call_id})")
+        # print(f"Adding {len(new_items)} items to history_inputs")
+        # for item in new_items:
+        #     item_type = item.get('type', 'unknown')
+        #     call_id = item.get('call_id', 'N/A')
+        #     reasoning_id = item.get('id', 'N/A') if item.get('type') == 'reasoning' else 'N/A'
+        #     if reasoning_id != 'N/A':
+        #         print(f"  - {item_type} (id: {reasoning_id})")
+        #     else:
+        #         print(f"  - {item_type} (call_id: {call_id})")
         
         history_inputs += new_items
 
@@ -317,7 +317,7 @@ def run_cua(
             break
 
         for action_call in calls:
-            print(f"\nProcessing computer_call with call_id: {action_call.get('call_id', 'N/A')}")
+            # print(f"\nProcessing computer_call with call_id: {action_call.get('call_id', 'N/A')}")
             py_cmd = _cua_to_pyautogui(action_call["action"])
             cla_action = CustomAction(action=py_cmd)
 
@@ -341,7 +341,7 @@ def run_cua(
                     "image_url": f"data:image/png;base64,{screenshot_b64}",
                 },
             }
-            print(f"Adding computer_call_output for call_id: {action_call['call_id']}")
+            # print(f"Adding computer_call_output for call_id: {action_call['call_id']}")
             history_inputs += [output_item]
             if "pending_safety_checks" in action_call and len(action_call.get("pending_safety_checks", [])) > 0:
                 history_inputs[-1]['acknowledged_safety_checks'] = [
@@ -355,31 +355,31 @@ def run_cua(
         
         # truncate history inputs while preserving call_id pairs and reasoning items
         if len(history_inputs) > truncate_history_inputs:
-            print(f"\n=== TRUNCATION NEEDED: {len(history_inputs)} > {truncate_history_inputs} ===")
+            # print(f"\n=== TRUNCATION NEEDED: {len(history_inputs)} > {truncate_history_inputs} ===")
             original_history = history_inputs[:]
             history_inputs = [history_inputs[0]] + history_inputs[-truncate_history_inputs:]
-            print(f"After initial truncation: {len(history_inputs)} items")
+            # print(f"After initial truncation: {len(history_inputs)} items")
             
             # Find all call_ids and reasoning IDs in the truncated history
             call_ids_in_truncated = set()
             reasoning_ids_in_truncated = set()
             
-            print(f"Analyzing truncated history items...")
+            # print(f"Analyzing truncated history items...")
             for item in history_inputs:
                 if isinstance(item, dict):
                     if 'call_id' in item:
                         call_ids_in_truncated.add(item['call_id'])
-                        print(f"  Found {item.get('type', 'unknown')} with call_id: {item['call_id']}")
+                        # print(f"  Found {item.get('type', 'unknown')} with call_id: {item['call_id']}")
                     if item.get('type') == 'reasoning' and 'id' in item:
                         reasoning_ids_in_truncated.add(item['id'])
-                        print(f"  Found reasoning with id: {item['id']}")
+                        # print(f"  Found reasoning with id: {item['id']}")
             
             # Check if any call_ids are missing their pairs (including reasoning)
             call_id_types = {}  # call_id -> list of types that reference it
             reasoning_for_calls = {}  # Maps computer_call call_ids to their reasoning items (not just IDs)
             computer_calls_by_id = {}  # Maps call_ids to their computer_call items
             
-            print(f"Scanning original history for call_ids and reasoning items...")
+            # print(f"Scanning original history for call_ids and reasoning items...")
             # First scan original history to build complete mappings
             for item in original_history:
                 if isinstance(item, dict):
@@ -398,7 +398,7 @@ def run_cua(
                             if isinstance(prev_item, dict) and prev_item.get('type') == 'reasoning':
                                 # Store the full reasoning item, not just its ID
                                 reasoning_for_calls[call_id] = prev_item
-                                print(f"  Mapped reasoning {prev_item.get('id', 'N/A')} to computer_call {call_id}")
+                                # print(f"  Mapped reasoning {prev_item.get('id', 'N/A')} to computer_call {call_id}")
                     
                     if 'call_id' in item:
                         call_id = item['call_id']
@@ -431,10 +431,10 @@ def run_cua(
                 
                 # If we have output but no call, or call but no output, it's unpaired
                 if has_output_in_truncated and not has_call_in_truncated:
-                    print(f"  Found orphaned computer_call_output: {call_id}")
+                    # print(f"  Found orphaned computer_call_output: {call_id}")
                     unpaired_call_ids.append(call_id)
                 elif has_call_in_truncated and not has_output_in_truncated:
-                    print(f"  Found orphaned computer_call: {call_id}")
+                    # print(f"  Found orphaned computer_call: {call_id}")
                     unpaired_call_ids.append(call_id)
                 
                 # Check if reasoning is missing for this call
@@ -446,8 +446,8 @@ def run_cua(
             
             # Add missing pairs and reasoning items from original history
             if unpaired_call_ids or missing_reasoning_ids:
-                print(f"Found unpaired call_ids: {unpaired_call_ids}")
-                print(f"Found missing reasoning_ids: {missing_reasoning_ids}")
+                # print(f"Found unpaired call_ids: {unpaired_call_ids}")
+                # print(f"Found missing reasoning_ids: {missing_reasoning_ids}")
                 # Find missing items in their original order
                 missing_items = []
                 
@@ -463,14 +463,14 @@ def run_cua(
                             reasoning_item = reasoning_for_calls[call_id]
                             if reasoning_item not in history_inputs and reasoning_item not in missing_items:
                                 missing_items.append(reasoning_item)
-                                print(f"  Adding missing reasoning for call_id {call_id}")
+                                # print(f"  Adding missing reasoning for call_id {call_id}")
                         
                         # Add the computer_call item
                         if call_id in computer_calls_by_id:
                             call_item = computer_calls_by_id[call_id]
                             if call_item not in history_inputs and call_item not in missing_items:
                                 missing_items.append(call_item)
-                                print(f"  Adding missing computer_call for call_id {call_id}")
+                                # print(f"  Adding missing computer_call for call_id {call_id}")
                     
                     # If we have call but no output, add back the output
                     elif 'computer_call' in types_in_truncated and 'computer_call_output' not in types_in_truncated:
@@ -482,7 +482,7 @@ def run_cua(
                                 item not in history_inputs and 
                                 item not in missing_items):
                                 missing_items.append(item)
-                                print(f"  Adding missing computer_call_output for call_id {call_id}")
+                                # print(f"  Adding missing computer_call_output for call_id {call_id}")
                                 break
                 
                 # Add any additional missing reasoning items (not covered by unpaired calls)
@@ -493,7 +493,7 @@ def run_cua(
                             item not in history_inputs and 
                             item not in missing_items):
                             missing_items.append(item)
-                            print(f"  Adding missing reasoning item with id {item.get('id')}")
+                            # print(f"  Adding missing reasoning item with id {item.get('id')}")
                 
                 # Insert missing items back, preserving their original order
                 for missing_item in missing_items:
@@ -510,59 +510,31 @@ def run_cua(
                                 break
                     
                     history_inputs.insert(insert_pos, missing_item)
-                    print(f"  Inserted missing {missing_item.get('type')} at position {insert_pos}")
+                    # print(f"  Inserted missing {missing_item.get('type')} at position {insert_pos}")
 
-        # Debug: Show what we're sending to the API
-        print(f"\n=== CALLING OPENAI CUA API ===")
-        print(f"Sending {len(history_inputs)} history items")
-        
+        # Debug: Check for critical issues before sending to API
         # Count different types of items
-        type_counts = {}
         call_id_map = {}  # Maps call_ids to their types
         for idx, item in enumerate(history_inputs):
-            if isinstance(item, dict):
-                item_type = item.get('type', 'user' if item.get('role') == 'user' else 'unknown')
-                type_counts[item_type] = type_counts.get(item_type, 0) + 1
-                
-                if 'call_id' in item:
-                    call_id = item['call_id']
-                    if call_id not in call_id_map:
-                        call_id_map[call_id] = []
-                    call_id_map[call_id].append((item_type, idx))
-        
-        print(f"Item type counts: {type_counts}")
+            if isinstance(item, dict) and 'call_id' in item:
+                call_id = item['call_id']
+                if call_id not in call_id_map:
+                    call_id_map[call_id] = []
+                call_id_map[call_id].append(item.get('type', 'unknown'))
         
         # Check for orphaned call_ids
         orphaned_outputs = []
-        for call_id, type_positions in call_id_map.items():
-            types = [tp[0] for tp in type_positions]
+        for call_id, types in call_id_map.items():
             if 'computer_call_output' in types and 'computer_call' not in types:
-                print(f"WARNING: Found orphaned computer_call_output for call_id: {call_id}")
-                print(f"  Types present for this call_id: {types}")
-                print(f"  Positions: {type_positions}")
                 orphaned_outputs.append(call_id)
         
         if orphaned_outputs:
-            print(f"\n!!! CRITICAL: About to send orphaned computer_call_outputs: {orphaned_outputs}")
+            print(f"\n!!! WARNING: Found orphaned computer_call_outputs: {orphaned_outputs}")
             print("This will likely cause an API error!")
-        
-        # Debug: Check computer_call and reasoning pairing
-        print(f"\nVerifying computer_call/reasoning pairs:")
-        for idx, item in enumerate(history_inputs):
-            if isinstance(item, dict) and item.get('type') == 'computer_call':
-                call_id = item.get('call_id', 'N/A')
-                # Check if there's a reasoning item before this
-                has_reasoning = False
-                if idx > 0:
-                    prev_item = history_inputs[idx - 1]
-                    if isinstance(prev_item, dict) and prev_item.get('type') == 'reasoning':
-                        has_reasoning = True
-                        print(f"  ✓ computer_call {call_id} has preceding reasoning {prev_item.get('id', 'N/A')}")
-                if not has_reasoning:
-                    print(f"  ✗ computer_call {call_id} MISSING preceding reasoning!")
         
         response, cost = call_openai_cua(client, history_inputs, screen_width, screen_height)
         total_cost += cost
+        print(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
         logger.info(f"Cost: ${cost:.6f} | Total Cost: ${total_cost:.6f}")
     
     logger.info(f"Total cost for the task: ${total_cost:.4f}")
