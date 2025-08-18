@@ -15,7 +15,7 @@ The CoAct agent system consists of:
 
 1. Install dependencies:
 ```bash
-pip install hud-sdk openai>=1.30
+pip install hud-python openai>=1.30
 ```
 
 2. Set up OpenAI API configuration in `coact/OAI_CONFIG_LIST`:
