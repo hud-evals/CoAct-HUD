@@ -241,7 +241,7 @@ class OrchestratorUserProxyAgent(MultimodalConversableAgent):
             result = result.replace("IDK", "").strip()
         else:
             result = f"I didn't complete the task and I have to go. Now I'm working on \"{result}\", please check the current screenshot."
-        return f"# Response from GUI agent: {result}<img data:image/png;base64,{screenshot}>"
+        return f"# Response from GUI agent: {result} [Image Redacted]>"
     
     def _call_coding_agent(self, task: str, environment: str, silent: bool = False) -> str:
         """Run a coding agent to solve the task."""
