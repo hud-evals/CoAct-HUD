@@ -377,11 +377,13 @@ def run_cua(
             # Check if any call_ids are missing their pairs (including reasoning)
             call_id_types = {}  # call_id -> list of types that reference it
             reasoning_for_calls = {}  # Maps computer_call call_ids to their reasoning items (not just IDs)
+            reasoning_for_messages = {}  # Maps message items to their preceding reasoning items
             computer_calls_by_id = {}  # Maps call_ids to their computer_call items
+            message_items_by_idx = {}  # Maps original history indices to message items
             
             # print(f"Scanning original history for call_ids and reasoning items...")
             # First scan original history to build complete mappings
-            for item in original_history:
+            for idx, item in enumerate(original_history):
                 if isinstance(item, dict):
                     item_type = item.get('type', '')
                     
@@ -392,13 +394,23 @@ def run_cua(
                         
                         # Find the reasoning item that should precede this computer_call
                         # Reasoning items typically come right before computer_calls
-                        orig_idx = original_history.index(item)
-                        if orig_idx > 0:
-                            prev_item = original_history[orig_idx - 1]
+                        if idx > 0:
+                            prev_item = original_history[idx - 1]
                             if isinstance(prev_item, dict) and prev_item.get('type') == 'reasoning':
                                 # Store the full reasoning item, not just its ID
                                 reasoning_for_calls[call_id] = prev_item
                                 # print(f"  Mapped reasoning {prev_item.get('id', 'N/A')} to computer_call {call_id}")
+                    
+                    # Store message items and check for preceding reasoning
+                    elif item_type == 'message':
+                        message_items_by_idx[idx] = item
+                        # Check if there's a reasoning item before this message
+                        if idx > 0:
+                            prev_item = original_history[idx - 1]
+                            if isinstance(prev_item, dict) and prev_item.get('type') == 'reasoning':
+                                # Map this message to its reasoning item
+                                reasoning_for_messages[id(item)] = prev_item
+                                # print(f"  Mapped reasoning {prev_item.get('id', 'N/A')} to message at index {idx}")
                     
                     if 'call_id' in item:
                         call_id = item['call_id']
@@ -419,6 +431,7 @@ def run_cua(
             # Find unpaired call_ids (should have computer_call, computer_call_output, and reasoning)
             unpaired_call_ids = []
             missing_reasoning_ids = set()
+            messages_missing_reasoning = []
             
             # Check each call_id in the TRUNCATED history to see if it's missing its pair
             for call_id, types_in_truncated in truncated_call_id_types.items():
@@ -444,10 +457,30 @@ def run_cua(
                     if reasoning_id and reasoning_id not in reasoning_ids_in_truncated:
                         missing_reasoning_ids.add(reasoning_id)
             
+            # Check for messages in truncated history that are missing their reasoning
+            for item in history_inputs:
+                if isinstance(item, dict) and item.get('type') == 'message':
+                    # Check if this message had a reasoning item in the original history
+                    msg_id = id(item)
+                    for orig_msg_id, reasoning_item in reasoning_for_messages.items():
+                        # We need to check if this is the same message object
+                        # Since we can't use id() across truncation, we need to compare content
+                        if item in original_history:
+                            orig_idx = original_history.index(item)
+                            for stored_idx, stored_msg in message_items_by_idx.items():
+                                if stored_idx == orig_idx and id(stored_msg) in reasoning_for_messages:
+                                    reasoning_item = reasoning_for_messages[id(stored_msg)]
+                                    reasoning_id = reasoning_item.get('id')
+                                    if reasoning_id and reasoning_id not in reasoning_ids_in_truncated:
+                                        messages_missing_reasoning.append((item, reasoning_item))
+                                        missing_reasoning_ids.add(reasoning_id)
+                                    break
+            
             # Add missing pairs and reasoning items from original history
-            if unpaired_call_ids or missing_reasoning_ids:
+            if unpaired_call_ids or missing_reasoning_ids or messages_missing_reasoning:
                 # print(f"Found unpaired call_ids: {unpaired_call_ids}")
                 # print(f"Found missing reasoning_ids: {missing_reasoning_ids}")
+                # print(f"Found {len(messages_missing_reasoning)} messages missing reasoning")
                 # Find missing items in their original order
                 missing_items = []
                 
@@ -485,7 +518,13 @@ def run_cua(
                                 # print(f"  Adding missing computer_call_output for call_id {call_id}")
                                 break
                 
-                # Add any additional missing reasoning items (not covered by unpaired calls)
+                # Add missing reasoning for messages
+                for msg, reasoning_item in messages_missing_reasoning:
+                    if reasoning_item not in history_inputs and reasoning_item not in missing_items:
+                        missing_items.append(reasoning_item)
+                        # print(f"  Adding missing reasoning for message: {reasoning_item.get('id')}")
+                
+                # Add any additional missing reasoning items (not covered by unpaired calls or messages)
                 for item in original_history:
                     if isinstance(item, dict):
                         if (item.get('type') == 'reasoning' and 
@@ -515,12 +554,30 @@ def run_cua(
         # Debug: Check for critical issues before sending to API
         # Count different types of items
         call_id_map = {}  # Maps call_ids to their types
+        orphaned_messages = []  # Messages without preceding reasoning
         for idx, item in enumerate(history_inputs):
-            if isinstance(item, dict) and 'call_id' in item:
-                call_id = item['call_id']
-                if call_id not in call_id_map:
-                    call_id_map[call_id] = []
-                call_id_map[call_id].append(item.get('type', 'unknown'))
+            if isinstance(item, dict):
+                if 'call_id' in item:
+                    call_id = item['call_id']
+                    if call_id not in call_id_map:
+                        call_id_map[call_id] = []
+                    call_id_map[call_id].append(item.get('type', 'unknown'))
+                
+                # Check if this is a message that might need reasoning
+                if item.get('type') == 'message' and idx > 0:
+                    # Check if the previous item is a reasoning item
+                    prev_item = history_inputs[idx - 1] if idx > 0 else None
+                    if prev_item and isinstance(prev_item, dict):
+                        # If the message originally had reasoning but it's missing now, flag it
+                        # We check this by looking at the original history
+                        if item in original_history:
+                            orig_idx = original_history.index(item) 
+                            if orig_idx > 0:
+                                orig_prev = original_history[orig_idx - 1]
+                                if (isinstance(orig_prev, dict) and 
+                                    orig_prev.get('type') == 'reasoning' and
+                                    prev_item.get('type') != 'reasoning'):
+                                    orphaned_messages.append(idx)
         
         # Check for orphaned call_ids
         orphaned_outputs = []
@@ -531,6 +588,10 @@ def run_cua(
         if orphaned_outputs:
             print(f"\n!!! WARNING: Found orphaned computer_call_outputs: {orphaned_outputs}")
             print("This will likely cause an API error!")
+        
+        if orphaned_messages:
+            print(f"\n!!! WARNING: Found messages potentially missing reasoning at indices: {orphaned_messages}")
+            print("This might cause an API error!")
         
         response, cost = call_openai_cua(client, history_inputs, screen_width, screen_height)
         total_cost += cost
